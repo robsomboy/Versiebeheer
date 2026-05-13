@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\MyFirstRepository.csproj": {}
+    "C:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\MyFirstRepository.csproj": {}
   },
   "projects": {
-    "c:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\MyFirstRepository.csproj": {
+    "C:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\MyFirstRepository.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\MyFirstRepository.csproj",
+        "projectUniqueName": "C:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\MyFirstRepository.csproj",
         "projectName": "MyFirstRepository",
-        "projectPath": "c:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\MyFirstRepository.csproj",
+        "projectPath": "C:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\MyFirstRepository.csproj",
         "packagesPath": "C:\\Users\\RobinW903\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\obj\\",
+        "outputPath": "C:\\Users\\RobinW903\\Desktop\\Versiebeheer\\MyFirstRepository\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
