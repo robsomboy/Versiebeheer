@@ -113,8 +113,15 @@ class GameForm : Form
     private System.Windows.Forms.Timer gameTimer;
     private System.Windows.Forms.Timer bossMovementTimer;
     private System.Windows.Forms.Timer knifeAnimationTimer;
+    private System.Windows.Forms.Timer hitAnimationTimer;
     private List<KnifeProjectile> activeKnives;
     private Random random;
+    private int hitAnimationCounter;
+    private int hitAnimationDuration;
+    private int bossKnockbackX;
+    private int bossKnockbackY;
+    private int currentWeaponIndex = -1;
+    private Dictionary<int, Cursor> weaponCursors;
 
     public GameForm()
     {
@@ -137,6 +144,7 @@ class GameForm : Form
         boss = new Boss("Enemy Boss", 120);
         player = new Player(100, 8);
         activeKnives = new List<KnifeProjectile>();
+        weaponCursors = new Dictionary<int, Cursor>();
 
         weapons = new List<Weapon>
         {
@@ -146,6 +154,9 @@ class GameForm : Form
             new Weapon("Laser Pen", 50, 0, 1),
             new Weapon("Throwing Knives", 15, 3, 2)
         };
+
+        // Create custom cursors for each weapon
+        CreateWeaponCursors();
     }
 
     private void InitializeUI()
@@ -233,6 +244,8 @@ class GameForm : Form
         };
         bossPanel.Paint += BossPanel_Paint;
         bossPanel.Click += BossPanel_Click;
+        bossPanel.MouseMove += BossPanel_MouseMove;
+        bossPanel.MouseLeave += BossPanel_MouseLeave;
         centerLayout.Controls.Add(bossPanel, 0, 1);
 
         bossInstructionLabel = new Label
@@ -313,6 +326,10 @@ class GameForm : Form
         knifeAnimationTimer = new System.Windows.Forms.Timer();
         knifeAnimationTimer.Interval = 50; // 20 times per second
         knifeAnimationTimer.Tick += KnifeAnimationTimer_Tick;
+
+        hitAnimationTimer = new System.Windows.Forms.Timer();
+        hitAnimationTimer.Interval = 30; // Hit animation timing
+        hitAnimationTimer.Tick += HitAnimationTimer_Tick;
     }
 
     private Label CreateStatLabel(string text, int top)
@@ -357,6 +374,7 @@ class GameForm : Form
         gameTimer.Start();
         bossMovementTimer.Start();
         knifeAnimationTimer.Start();
+        hitAnimationTimer.Start();
         UpdateUI();
     }
 
@@ -385,6 +403,9 @@ class GameForm : Form
         var button = (Button)sender;
         var weaponIndex = (int)button.Tag;
         var weapon = weapons[weaponIndex];
+        
+        // Set current weapon
+        currentWeaponIndex = weaponIndex;
 
         if (player.Ammo >= weapon.AmmoCost)
         {
@@ -404,6 +425,7 @@ class GameForm : Form
             {
                 var damage = weapon.DealDamage();
                 boss.TakeDamage(damage);
+                TriggerHitAnimation();
                 statusLabel.Text = $"You used {weapon.Name} and dealt {damage} damage to the boss!";
             }
 
@@ -417,6 +439,25 @@ class GameForm : Form
         }
     }
 
+    private void BossPanel_MouseMove(object sender, MouseEventArgs e)
+    {
+        // Change cursor based on selected weapon
+        if (currentWeaponIndex >= 0 && weaponCursors.ContainsKey(currentWeaponIndex))
+        {
+            bossPanel.Cursor = weaponCursors[currentWeaponIndex];
+        }
+        else
+        {
+            bossPanel.Cursor = Cursors.Default;
+        }
+    }
+
+    private void BossPanel_MouseLeave(object sender, EventArgs e)
+    {
+        // Restore default cursor
+        bossPanel.Cursor = Cursors.Default;
+    }
+
     private void BossPanel_Click(object sender, EventArgs e)
     {
         if (player.IsAlive && boss.IsAlive)
@@ -424,6 +465,10 @@ class GameForm : Form
             var damage = 8;
             boss.TakeDamage(damage);
             statusLabel.Text = $"You punched the boss and dealt {damage} damage!";
+            
+            // Start hit animation
+            TriggerHitAnimation();
+            
             UpdateUI();
             bossPanel.Invalidate();
 
@@ -441,34 +486,48 @@ class GameForm : Form
 
         if (boss.IsAlive)
         {
+            // Get draw position with knockback
+            int drawX = boss.X + bossKnockbackX;
+            int drawY = boss.Y + bossKnockbackY;
+
+            // Determine boss color based on hit animation
+            var bodyBrush = Brushes.DarkGray;
+            var headBrush = Brushes.LightGray;
+            if (hitAnimationCounter > 0 && hitAnimationCounter % 2 == 0)
+            {
+                // Flash white when hit
+                bodyBrush = Brushes.White;
+                headBrush = Brushes.White;
+            }
+
             // Draw boss with realistic outfit
             // Body (armor)
-            g.FillRectangle(Brushes.DarkGray, boss.X - 20, boss.Y - 15, 40, 30);
-            g.DrawRectangle(Pens.Black, boss.X - 20, boss.Y - 15, 40, 30);
+            g.FillRectangle(bodyBrush, drawX - 20, drawY - 15, 40, 30);
+            g.DrawRectangle(Pens.Black, drawX - 20, drawY - 15, 40, 30);
 
             // Head
-            g.FillEllipse(Brushes.LightGray, boss.X - 10, boss.Y - 35, 20, 20);
-            g.DrawEllipse(Pens.Black, boss.X - 10, boss.Y - 35, 20, 20);
+            g.FillEllipse(headBrush, drawX - 10, drawY - 35, 20, 20);
+            g.DrawEllipse(Pens.Black, drawX - 10, drawY - 35, 20, 20);
 
             // Eyes
-            g.FillEllipse(Brushes.Red, boss.X - 7, boss.Y - 32, 4, 4);
-            g.FillEllipse(Brushes.Red, boss.X - 1, boss.Y - 32, 4, 4);
+            g.FillEllipse(Brushes.Red, drawX - 7, drawY - 32, 4, 4);
+            g.FillEllipse(Brushes.Red, drawX - 1, drawY - 32, 4, 4);
 
             // Armor details
-            g.DrawLine(Pens.Black, boss.X - 15, boss.Y - 10, boss.X + 15, boss.Y - 10);
-            g.DrawLine(Pens.Black, boss.X - 15, boss.Y + 5, boss.X + 15, boss.Y + 5);
+            g.DrawLine(Pens.Black, drawX - 15, drawY - 10, drawX + 15, drawY - 10);
+            g.DrawLine(Pens.Black, drawX - 15, drawY + 5, drawX + 15, drawY + 5);
 
             // Arms
-            g.FillRectangle(Brushes.LightGray, boss.X - 30, boss.Y - 10, 10, 20);
-            g.FillRectangle(Brushes.LightGray, boss.X + 20, boss.Y - 10, 10, 20);
-            g.DrawRectangle(Pens.Black, boss.X - 30, boss.Y - 10, 10, 20);
-            g.DrawRectangle(Pens.Black, boss.X + 20, boss.Y - 10, 10, 20);
+            g.FillRectangle(Brushes.LightGray, drawX - 30, drawY - 10, 10, 20);
+            g.FillRectangle(Brushes.LightGray, drawX + 20, drawY - 10, 10, 20);
+            g.DrawRectangle(Pens.Black, drawX - 30, drawY - 10, 10, 20);
+            g.DrawRectangle(Pens.Black, drawX + 20, drawY - 10, 10, 20);
 
             // Legs
-            g.FillRectangle(Brushes.DarkGray, boss.X - 12, boss.Y + 15, 8, 15);
-            g.FillRectangle(Brushes.DarkGray, boss.X + 4, boss.Y + 15, 8, 15);
-            g.DrawRectangle(Pens.Black, boss.X - 12, boss.Y + 15, 8, 15);
-            g.DrawRectangle(Pens.Black, boss.X + 4, boss.Y + 15, 8, 15);
+            g.FillRectangle(Brushes.DarkGray, drawX - 12, drawY + 15, 8, 15);
+            g.FillRectangle(Brushes.DarkGray, drawX + 4, drawY + 15, 8, 15);
+            g.DrawRectangle(Pens.Black, drawX - 12, drawY + 15, 8, 15);
+            g.DrawRectangle(Pens.Black, drawX + 4, drawY + 15, 8, 15);
         }
 
         // Draw knife projectiles
@@ -527,6 +586,7 @@ class GameForm : Form
                 knife.HasHit = true;
                 var damage = random.Next(5, 16); // 5-15 damage per knife
                 boss.TakeDamage(damage);
+                TriggerHitAnimation();
                 statusLabel.Text = $"Knife hit! Dealt {damage} damage to the boss!";
                 UpdateUI();
             }
@@ -565,11 +625,95 @@ class GameForm : Form
         }
     }
 
+    private void HitAnimationTimer_Tick(object sender, EventArgs e)
+    {
+        if (hitAnimationCounter > 0)
+        {
+            hitAnimationCounter--;
+
+            // Reduce knockback over time
+            if (bossKnockbackX != 0)
+            {
+                bossKnockbackX = (int)(bossKnockbackX * 0.8);
+            }
+            if (bossKnockbackY != 0)
+            {
+                bossKnockbackY = (int)(bossKnockbackY * 0.8);
+            }
+
+            bossPanel.Invalidate();
+        }
+    }
+
+    private void TriggerHitAnimation()
+    {
+        hitAnimationCounter = 10; // Animate for 10 frames
+        bossKnockbackX = -15; // Knockback to the left
+        bossKnockbackY = -10; // Knockback upward
+    }
+
+    private void CreateWeaponCursors()
+    {
+        // Pistol cursor - crosshair-like
+        weaponCursors[0] = CreateBitmapCursor("🔫", Color.Yellow);
+
+        // Machine Gun cursor
+        weaponCursors[1] = CreateBitmapCursor("🔫", Color.Orange);
+
+        // Grenades cursor
+        weaponCursors[2] = CreateBitmapCursor("💣", Color.Red);
+
+        // Laser Pen cursor
+        weaponCursors[3] = CreateBitmapCursor("🔴", Color.LimeGreen);
+
+        // Throwing Knives cursor - knife
+        weaponCursors[4] = CreateBitmapCursor("🔪", Color.Silver);
+    }
+
+    private Cursor CreateBitmapCursor(string symbol, Color color)
+    {
+        try
+        {
+            // Create a 32x32 bitmap for the cursor
+            Bitmap cursorBitmap = new Bitmap(32, 32);
+            using (Graphics g = Graphics.FromImage(cursorBitmap))
+            {
+                g.Clear(Color.Transparent);
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+                // Draw a colored circle/shape
+                using (var brush = new SolidBrush(color))
+                {
+                    // Draw outer circle
+                    g.FillEllipse(brush, 8, 8, 16, 16);
+                }
+
+                // Draw crosshair or targeting lines
+                using (var pen = new Pen(Color.White, 1.5f))
+                {
+                    g.DrawLine(pen, 16, 4, 16, 28);  // Vertical line
+                    g.DrawLine(pen, 4, 16, 28, 16);  // Horizontal line
+                }
+            }
+
+            // Convert bitmap to cursor
+            IntPtr ptr = cursorBitmap.GetHicon();
+            Cursor cursor = new Cursor(ptr);
+            return cursor;
+        }
+        catch
+        {
+            // Fallback to default cursor if bitmap creation fails
+            return Cursors.Default;
+        }
+    }
+
     private void EndGame(bool playerWon)
     {
         gameTimer.Stop();
         bossMovementTimer.Stop();
         knifeAnimationTimer.Stop();
+        hitAnimationTimer.Stop();
         activeKnives.Clear();
 
         string message = playerWon
